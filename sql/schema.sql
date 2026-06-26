@@ -33,7 +33,7 @@ CREATE TABLE festivals (
 -- collection of performances for a given day
 CREATE TABLE events (
     id          SERIAL PRIMARY KEY,
-    price       NUMERIC NOT NULL,
+    price       NUMERIC,
     event_date  DATE NOT NULL,
     venue_id    INTEGER REFERENCES venues(id) ON DELETE SET NULL,
     festival_id INTEGER REFERENCES festivals(id) ON DELETE SET NULL,
