@@ -13,9 +13,11 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const rows = await sql`SELECT * FROM artists WHERE id = ${id}`;
+    
     if (rows.length === 0) {
         return res.status(404).json({ error: 'Artist not found' });
     }
+
     res.json(rows[0]);
 });
 
@@ -24,7 +26,7 @@ router.post('/', async (req, res) => {
     const { name, rating, page_link } = req.body ?? {};
 
     if (!name) {
-        return res.status(400).json({ error: 'name is required' });
+        return res.status(400).json({ error: 'Name is required' });
     }
 
     const rows = await sql`
@@ -32,6 +34,7 @@ router.post('/', async (req, res) => {
         VALUES (${name}, ${rating ?? null}, ${page_link ?? null})
         RETURNING *
     `;
+
     res.status(201).json(rows[0]);
 });
 
@@ -58,9 +61,11 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     const rows = await sql`DELETE FROM artists WHERE id = ${id} RETURNING *`;
+
     if (rows.length === 0) {
         return res.status(404).json({ error: 'Artist not found' });
     }
+
     res.status(204).send(); // 204 - success
 });
 
