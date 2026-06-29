@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const { name, price, year } = req.body ?? {};
 
     if (!name || price == null || year == null) {
-        return res.status(400).json({ error: 'Name, price, and year are required' });
+        return res.status(400).json({ error: 'name, price, and year are required' });
     }
 
     const rows = await sql`

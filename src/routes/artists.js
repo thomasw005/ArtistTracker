@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const rows = await sql`SELECT * FROM artists WHERE id = ${id}`;
-    
+
     if (rows.length === 0) {
         return res.status(404).json({ error: 'Artist not found' });
     }
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const { name, rating, page_link } = req.body ?? {};
 
     if (!name) {
-        return res.status(400).json({ error: 'Name is required' });
+        return res.status(400).json({ error: 'name is required' });
     }
 
     const rows = await sql`

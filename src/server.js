@@ -3,7 +3,7 @@ import { sql } from './db.js';
 import artistsRouter from './routes/artists.js';
 import venuesRouter from './routes/venues.js';
 import festivalsRouter from './routes/festivals.js';
-// import eventsRouter from './routes/events.js';
+import eventsRouter from './routes/events.js';
 
 const app = express();
 
@@ -11,7 +11,7 @@ app.use(express.json());
 app.use('/api/artists', artistsRouter);
 app.use('/api/venues', venuesRouter);
 app.use('/api/festivals', festivalsRouter);
-// app.use('/api/events', eventsRouter);
+app.use('/api/events', eventsRouter);
 
 // Central error handler. Most-specific checks first, generic fallback last.
 app.use((err, req, res, next) => {
