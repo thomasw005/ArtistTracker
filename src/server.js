@@ -15,6 +15,15 @@ app.use('/api/festivals', festivalsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/performances', performancesRouter);
 
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+app.get('/health/db', async (req, res) => {
+    const rows = await sql`SELECT now() AS time`;
+    res.json({ status: 'ok', db_time: rows[0].time });
+});
+
 // Central error handler. Most-specific checks first, generic fallback last.
 app.use((err, req, res, next) => {
   console.error(err);
@@ -29,17 +38,13 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: err.detail ?? err.message });
   }
 
+  // Postgres data exceptions (22xxx), e.g. 22P02 invalid id like /artists/abc -> 400
+  if (err.code && err.code.startsWith('22')) {
+    return res.status(400).json({ error: 'Invalid input syntax' });
+  }
+
   // Anything else = unexpected server error
   res.status(500).json({ error: 'Internal server error' });
-});
-
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
-});
-
-app.get('/health/db', async (req, res) => {
-    const rows = await sql`SELECT now() AS time`;
-    res.json({ status: 'ok', db_time: rows[0].time });
 });
 
 const PORT = process.env.PORT ?? 3000;

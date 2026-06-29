@@ -96,7 +96,7 @@ router.put('/:id', async (req, res) => {
     const { price, event_date, venue_id, festival_id, notes } = req.body ?? {};
 
     if (!event_date) {
-        return res.status(400).json({ error: 'event_date is rqeuired' });
+        return res.status(400).json({ error: 'event_date is required' });
     }
 
     if (venue_id == null && festival_id == null) {
