@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { sql } from './db.js';
+import authRouter from './routes/auth.js';
 import artistsRouter from './routes/artists.js';
 import venuesRouter from './routes/venues.js';
 import festivalsRouter from './routes/festivals.js';
@@ -9,6 +10,7 @@ import performancesRouter from './routes/performances.js';
 const app = express();
 
 app.use(express.json());
+app.use('/api/auth', authRouter);
 app.use('/api/artists', artistsRouter);
 app.use('/api/venues', venuesRouter);
 app.use('/api/festivals', festivalsRouter);
