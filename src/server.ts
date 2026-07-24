@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
 import { sql } from './db.js';
 import artistsRouter from './routes/artists.js';
 import venuesRouter from './routes/venues.js';
@@ -25,27 +25,34 @@ app.get('/health/db', async (req, res) => {
 });
 
 // Central error handler. Most-specific checks first, generic fallback last.
-app.use((err, req, res, next) => {
+// Express only recognises this as an error handler if it takes all four params,
+// so `next` stays even though it is unused.
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   console.error(err);
 
   // Malformed JSON in the request body (thrown by express.json())
   if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ error: 'Invalid JSON in request body' });
+    res.status(400).json({ error: 'Invalid JSON in request body' });
+    return;
   }
 
   // Postgres constraint violations (23xxx) = bad data from the client -> 400
   if (err.code && err.code.startsWith('23')) {
-    return res.status(400).json({ error: err.detail ?? err.message });
+    res.status(400).json({ error: err.detail ?? err.message });
+    return;
   }
 
   // Postgres data exceptions (22xxx), e.g. 22P02 invalid id like /artists/abc -> 400
   if (err.code && err.code.startsWith('22')) {
-    return res.status(400).json({ error: 'Invalid input syntax' });
+    res.status(400).json({ error: 'Invalid input syntax' });
+    return;
   }
 
   // Anything else = unexpected server error
   res.status(500).json({ error: 'Internal server error' });
-});
+};
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => {
