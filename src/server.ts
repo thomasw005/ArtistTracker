@@ -1,4 +1,5 @@
 import express, { type ErrorRequestHandler } from 'express';
+import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { sql } from './db.js';
 import authRouter from './routes/auth.js';
@@ -12,6 +13,12 @@ import meRouter from './routes/me.js';
 
 const app = express();
 
+// Allow the frontend (a different origin) to call the API and send the auth
+// cookie. Origin must be explicit — the browser forbids '*' with credentials.
+app.use(cors({
+    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+    credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api/auth', authRouter);

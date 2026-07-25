@@ -4,6 +4,7 @@ import { hashPassword } from '../auth/password.js';
 import { verifyPassword } from '../auth/password.js';
 import { signToken } from '../auth/jwt.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { TOKEN_COOKIE, tokenCookieOptions, TOKEN_MAX_AGE } from '../auth/cookies.js';
 import type { User } from '../types.js';
 
 const router = Router();
@@ -22,7 +23,7 @@ router.post('/register', async (req, res) => {
     const rows = (await sql`
         INSERT INTO users (email, username, password_hash)
         VALUES (${email.toLowerCase()}, ${username}, ${password_hash})
-        RETURNING id, email, username, created_at
+        RETURNING id, email, username, is_admin, created_at
     `) as Omit<User, 'password_hash'>[];
 
     res.status(201).json(rows[0]);
@@ -51,12 +52,7 @@ router.post('/login', async (req, res) => {
 
     const token = signToken({ userId: user.id });
 
-    res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV !== 'development',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days, matches the JWT expiry
-    });
+    res.cookie(TOKEN_COOKIE, token, { ...tokenCookieOptions, maxAge: TOKEN_MAX_AGE });
 
     res.json({ message: 'Logged in' });
 });
@@ -64,7 +60,7 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me - return the currently logged-in user
 router.get('/me', requireAuth, async (req, res) => {
     const rows = (await sql`
-        SELECT id, email, username, created_at FROM users WHERE id = ${req.userId}
+        SELECT id, email, username, is_admin, created_at FROM users WHERE id = ${req.userId}
     `) as Omit<User, 'password_hash'>[];
 
     // requireAuth already confirmed this user exists, so rows[0] is present.
@@ -73,11 +69,7 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // POST /api/auth/logout - clear the session cookie
 router.post('/logout', (req, res) => {
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV !== 'development',
-        sameSite: 'lax',
-    });
+    res.clearCookie(TOKEN_COOKIE, tokenCookieOptions);
 
     res.json({ message: 'Logged out' });
 });

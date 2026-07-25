@@ -14,9 +14,16 @@ A REST API for tracking artists, venues, festivals, events, and performances.
 
    ```
    DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>?sslmode=require
+   JWT_SECRET=<a long random string used to sign auth tokens>
+
+   # Optional. The frontend origin allowed to call the API (default: http://localhost:5173)
+   FRONTEND_ORIGIN=http://localhost:5173
+   # Optional. Set to true only if the frontend and API are on different sites
+   # (e.g. app.example.com vs api.example.com); enables SameSite=None; Secure cookies.
+   CROSS_SITE_COOKIE=false
    ```
 
-   Get this from your [Neon](https://neon.tech) dashboard under Project → Connection Details (use the pooled connection string).
+   Get `DATABASE_URL` from your [Neon](https://neon.tech) dashboard under Project → Connection Details (use the pooled connection string). `JWT_SECRET` can be any long random string.
 
 3. Run the schema migration to create the tables:
 
