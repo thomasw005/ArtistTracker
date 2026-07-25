@@ -54,6 +54,9 @@ INSERT INTO users (email, username, password_hash) VALUES
   ('demo@example.com', 'demo',
    '$2b$12$BbrsAMCbQSr7HE05I8z7L.b9wWJK8YvXPU0Geaq1ppUUTku0GgwCe');  -- id 1
 
+-- Make the demo user an admin so they can edit verified/canonical entries.
+UPDATE users SET is_admin = true WHERE email = 'demo@example.com';
+
 -- How this user rates each artist
 INSERT INTO user_artists (user_id, artist_id, rating) VALUES
   (1, 1, 5),   -- Radiohead

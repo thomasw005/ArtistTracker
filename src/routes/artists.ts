@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
+import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
 import type { Artist } from '../types.js';
 
 const router = Router();
@@ -47,10 +48,20 @@ router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     res.status(201).json(rows[0]);
 });
 
-// PUT /api/artists/:id - update an artist
+// PUT /api/artists/:id - update an artist (creator or admin only)
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
+
+    const [existing] = (await sql`
+        SELECT created_by, verified FROM artists WHERE id = ${id}
+    `) as CatalogGuardRow[];
+
+    const permError = catalogEditError(existing, req);
+    if (permError) {
+        res.status(permError.status).json({ error: permError.message });
+        return;
+    }
 
     const rows = (await sql`
         UPDATE artists
@@ -59,24 +70,24 @@ router.put('/:id', requireAuth, async (req, res) => {
         RETURNING *
     `) as Artist[];
 
-    if (rows.length === 0) {
-        res.status(404).json({ error: 'Artist not found' });
-        return;
-    }
-
     res.json(rows[0]);
 });
 
-// DELETE /api/artists/:id - delete an artist
+// DELETE /api/artists/:id - delete an artist (creator or admin only)
 router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const rows = (await sql`DELETE FROM artists WHERE id = ${id} RETURNING *`) as Artist[];
 
-    if (rows.length === 0) {
-        res.status(404).json({ error: 'Artist not found' });
+    const [existing] = (await sql`
+        SELECT created_by, verified FROM artists WHERE id = ${id}
+    `) as CatalogGuardRow[];
+
+    const permError = catalogEditError(existing, req);
+    if (permError) {
+        res.status(permError.status).json({ error: permError.message });
         return;
     }
 
+    await sql`DELETE FROM artists WHERE id = ${id}`;
     res.status(204).send(); // 204 - success
 });
 

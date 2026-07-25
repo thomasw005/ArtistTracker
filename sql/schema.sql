@@ -16,6 +16,7 @@ CREATE TABLE users (
     email           TEXT NOT NULL UNIQUE,
     username        TEXT NOT NULL UNIQUE,
     password_hash   TEXT NOT NULL,
+    is_admin        BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -45,7 +46,7 @@ CREATE TABLE festivals (
     created_at      TIMESTAMPTZ DEFAULT now(),
     created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
     verified        BOOLEAN NOT NULL DEFAULT false
-);  
+);
 
 -- collection of performances for a given day
 CREATE TABLE events (

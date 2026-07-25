@@ -3,6 +3,7 @@ export interface User {
   email: string;
   username: string;
   password_hash: string;
+  is_admin: boolean;
   created_at: string;
 }
 
