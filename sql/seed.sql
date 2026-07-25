@@ -37,6 +37,12 @@ INSERT INTO performances (event_id, artist_id) VALUES
   (4, 3),   -- Tame Impala @ EDC Day 3
   (5, 4);   -- deadmau5 @ the afterparty
 
+-- The seeded catalog is official/canonical: mark it verified (created_by stays NULL).
+UPDATE artists   SET verified = true;
+UPDATE venues    SET verified = true;
+UPDATE festivals SET verified = true;
+UPDATE events    SET verified = true;
+
 -- =============================================================================
 -- A demo user, plus their personal layer over the catalog above.
 -- Login: demo@example.com / password123  (hash is bcrypt, 12 rounds)

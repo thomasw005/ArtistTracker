@@ -1,13 +1,18 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type { Venue } from '../types.js';
 
 const router = Router();
 
-// GET /api/venues - list all venues
+// GET /api/venues - list venues, optionally filtered by ?search=
 router.get('/', async (req, res) => {
-    const venues = (await sql`SELECT * FROM venues ORDER BY name`) as Venue[];
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    const pattern = `%${search}%`;
+    const venues = (await sql`
+        SELECT * FROM venues WHERE name ILIKE ${pattern} ORDER BY name
+    `) as Venue[];
     res.json(venues);
 });
 
@@ -24,8 +29,8 @@ router.get('/:id', async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/venues - create a venue
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/venues - create a venue (added to the shared catalog)
+router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
     if (!name) {
@@ -34,8 +39,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const rows = (await sql`
-        INSERT INTO venues (name, city, country)
-        VALUES (${name}, ${city ?? null}, ${country ?? null})
+        INSERT INTO venues (name, city, country, created_by)
+        VALUES (${name}, ${city ?? null}, ${country ?? null}, ${req.userId})
         RETURNING *
     `) as Venue[];
 

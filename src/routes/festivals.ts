@@ -1,13 +1,18 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type { Festival } from '../types.js';
 
 const router = Router();
 
-// GET /api/festivals - list all festivals
+// GET /api/festivals - list festivals, optionally filtered by ?search=
 router.get('/', async (req, res) => {
-    const festivals = (await sql`SELECT * FROM festivals ORDER BY year DESC, name`) as Festival[];
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    const pattern = `%${search}%`;
+    const festivals = (await sql`
+        SELECT * FROM festivals WHERE name ILIKE ${pattern} ORDER BY year DESC, name
+    `) as Festival[];
     res.json(festivals);
 });
 
@@ -24,8 +29,8 @@ router.get('/:id', async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/festivals - create a festival
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/festivals - create a festival (added to the shared catalog)
+router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
     if (!name || year == null) {
@@ -34,8 +39,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const rows = (await sql`
-        INSERT INTO festivals (name, year)
-        VALUES (${name}, ${year})
+        INSERT INTO festivals (name, year, created_by)
+        VALUES (${name}, ${year}, ${req.userId})
         RETURNING *
     `) as Festival[];
 

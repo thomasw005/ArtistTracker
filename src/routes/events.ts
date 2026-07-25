@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type {
     Event,
     EventDetailRow,
@@ -13,13 +14,17 @@ const router = Router();
 
 // GET /api/events - list all events (lean: enough to render a row + navigate)
 router.get('/', async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    const pattern = `%${search}%`;
     const events = (await sql`
         SELECT e.id, e.name, e.event_date, e.venue_id, e.festival_id,
+               e.created_by, e.verified,
                v.name AS venue_name,
                f.name AS festival_name, f.year AS festival_year
         FROM events e
         LEFT JOIN venues v    ON v.id = e.venue_id
         LEFT JOIN festivals f ON f.id = e.festival_id
+        WHERE COALESCE(e.name, '') ILIKE ${pattern}
         ORDER BY e.event_date DESC
     `) as EventListRow[];
     res.json(events);
@@ -56,6 +61,8 @@ router.get('/:id', async (req, res) => {
     res.json({
         id: row.id,
         name: row.name,
+        verified: row.verified,
+        created_by: row.created_by,
         event_date: row.event_date,
         venue: row.venue_id ? {
             id: row.venue_id,
@@ -73,7 +80,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/events - create an event
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     const { name, event_date, venue_id, festival_id, artists } =
         (req.body ?? {}) as Partial<Event> & { artists?: PerformanceInput[] };
 
@@ -83,8 +90,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const [event] = (await sql`
-        INSERT INTO events (name, event_date, venue_id, festival_id)
-        VALUES (${name ?? null}, ${event_date}, ${venue_id ?? null}, ${festival_id ?? null})
+        INSERT INTO events (name, event_date, venue_id, festival_id, created_by)
+        VALUES (${name ?? null}, ${event_date}, ${venue_id ?? null}, ${festival_id ?? null}, ${req.userId})
         RETURNING *
     `) as Event[];
 

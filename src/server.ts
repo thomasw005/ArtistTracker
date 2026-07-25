@@ -7,6 +7,8 @@ import venuesRouter from './routes/venues.js';
 import festivalsRouter from './routes/festivals.js';
 import eventsRouter from './routes/events.js';
 import performancesRouter from './routes/performances.js';
+import { requireAuth } from './auth/requireAuth.js';
+import meRouter from './routes/me.js';
 
 const app = express();
 
@@ -18,6 +20,7 @@ app.use('/api/venues', venuesRouter);
 app.use('/api/festivals', festivalsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/performances', performancesRouter);
+app.use('/api/me', requireAuth, meRouter);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });

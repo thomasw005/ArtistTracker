@@ -23,7 +23,9 @@ CREATE TABLE artists (
     id              SERIAL PRIMARY KEY,
     name            TEXT NOT NULL,
     page_link       TEXT,
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified        BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE venues (
@@ -31,14 +33,18 @@ CREATE TABLE venues (
     name            TEXT NOT NULL,
     city            TEXT,
     country         TEXT,
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified        BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE festivals (
     id              SERIAL PRIMARY KEY,
     name            TEXT NOT NULL,
     year            INTEGER NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified        BOOLEAN NOT NULL DEFAULT false
 );  
 
 -- collection of performances for a given day
@@ -48,6 +54,8 @@ CREATE TABLE events (
     event_date      DATE NOT NULL,
     venue_id        INTEGER REFERENCES venues(id) ON DELETE SET NULL,
     festival_id     INTEGER REFERENCES festivals(id) ON DELETE SET NULL,
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified        BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT venue_or_festival CHECK (
         venue_id IS NOT NULL OR festival_id IS NOT NULL

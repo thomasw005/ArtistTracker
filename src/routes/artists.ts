@@ -1,13 +1,18 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type { Artist } from '../types.js';
 
 const router = Router();
 
-// GET /api/artists - list all artists
+// GET /api/artists - list artists, optionally filtered by ?search=
 router.get('/', async (req, res) => {
-    const artists = (await sql`SELECT * FROM artists ORDER BY name`) as Artist[];
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    const pattern = `%${search}%`;
+    const artists = (await sql`
+        SELECT * FROM artists WHERE name ILIKE ${pattern} ORDER BY name
+    `) as Artist[];
     res.json(artists);
 });
 
@@ -24,8 +29,8 @@ router.get('/:id', async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/artists - create an artist
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/artists - create an artist (added to the shared catalog)
+router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
 
     if (!name) {
@@ -34,8 +39,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const rows = (await sql`
-        INSERT INTO artists (name, page_link)
-        VALUES (${name}, ${page_link ?? null})
+        INSERT INTO artists (name, page_link, created_by)
+        VALUES (${name}, ${page_link ?? null}, ${req.userId})
         RETURNING *
     `) as Artist[];
 

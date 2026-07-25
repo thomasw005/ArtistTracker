@@ -10,6 +10,8 @@ export interface Artist {
   id: number;
   name: string;
   page_link: string | null;
+  created_by: number | null;
+  verified: boolean;
   created_at: string;
 }
 
@@ -18,6 +20,8 @@ export interface Venue {
   name: string;
   city: string | null;
   country: string | null;
+  created_by: number | null;
+  verified: boolean;
   created_at: string;
 }
 
@@ -25,6 +29,8 @@ export interface Festival {
   id: number;
   name: string;
   year: number;
+  created_by: number | null;
+  verified: boolean;
   created_at: string;
 }
 
@@ -34,6 +40,8 @@ export interface Event {
   event_date: string;
   venue_id: number | null;
   festival_id: number | null;
+  created_by: number | null;
+  verified: boolean;
 }
 
 export interface Performance {
@@ -53,6 +61,8 @@ export interface EventListRow {
   event_date: string;
   venue_id: number | null;
   festival_id: number | null;
+  created_by: number | null;
+  verified: boolean;
   venue_name: string | null;
   festival_name: string | null;
   festival_year: number | null;
@@ -83,4 +93,90 @@ export interface PerformanceRow extends Performance {
 /** One entry in the optional `artists` array on POST /api/events. */
 export interface PerformanceInput {
   artist_id: number;
+}
+
+// --- Junction rows: RETURNING * from the user_* tables (PUT responses). ---
+// NUMERIC comes back from Postgres as a string, same as Festival/Event price.
+
+export interface UserArtist {
+  user_id: number;
+  artist_id: number;
+  rating: number | null;
+  created_at: string;
+}
+
+export interface UserVenue {
+  user_id: number;
+  venue_id: number;
+  rating: number | null;
+  created_at: string;
+}
+
+export interface UserFestival {
+  user_id: number;
+  festival_id: number;
+  price: string;
+  created_at: string;
+}
+
+export interface UserEvent {
+  user_id: number;
+  event_id: number;
+  rating: number | null;
+  price: string | null;
+  created_at: string;
+}
+
+export interface UserPerformance {
+  user_id: number;
+  event_id: number;
+  artist_id: number;
+  rating: number | null;
+}
+
+// --- Enriched "my list" rows: catalog columns + my personal columns (GET). ---
+
+export interface MyArtist {
+  id: number;
+  name: string;
+  page_link: string | null;
+  rating: number | null;
+  created_at: string;
+}
+
+export interface MyVenue {
+  id: number;
+  name: string;
+  city: string | null;
+  country: string | null;
+  rating: number | null;
+  created_at: string;
+}
+
+export interface MyFestival {
+  id: number;
+  name: string;
+  year: number;
+  price: string;
+  created_at: string;
+}
+
+export interface MyEvent {
+  id: number;
+  name: string | null;
+  event_date: string;
+  venue_id: number | null;
+  festival_id: number | null;
+  rating: number | null;
+  price: string | null;
+  created_at: string;
+}
+
+export interface MyPerformance {
+  event_id: number;
+  artist_id: number;
+  artist_name: string;
+  event_name: string | null;
+  event_date: string;
+  rating: number | null;
 }
