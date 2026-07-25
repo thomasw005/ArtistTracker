@@ -20,7 +20,7 @@ INSERT INTO venues (name, city, country) VALUES
 INSERT INTO festivals (name, year) VALUES
   ('EDC', 2026);   -- id 1
 
--- Events (one row per day/session; name is the canonical label)
+-- Events (one row per day/session, name is the canonical label)
 INSERT INTO events (name, event_date, venue_id, festival_id) VALUES
   ('Brixton show',         '2023-05-20', 1,    NULL),  -- id 1: venue only
   ('EDC Day 1',            '2026-05-15', 3,    1),     -- id 2: grounds + festival
