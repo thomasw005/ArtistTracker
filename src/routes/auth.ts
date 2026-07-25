@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { hashPassword } from '../auth/password.js';
-import type { User } from '../types.js';
 import { verifyPassword } from '../auth/password.js';
 import { signToken } from '../auth/jwt.js';
+import { requireAuth } from '../auth/requireAuth.js';
+import type { User } from '../types.js';
 
 const router = Router();
 
@@ -59,5 +60,27 @@ router.post('/login', async (req, res) => {
 
     res.json({ message: 'Logged in' });
 });
+
+// GET /api/auth/me - return the currently logged-in user
+router.get('/me', requireAuth, async (req, res) => {
+    const rows = (await sql`
+        SELECT id, email, username, created_at FROM users WHERE id = ${req.userId}
+    `) as Omit<User, 'password_hash'>[];
+
+    // requireAuth already confirmed this user exists, so rows[0] is present.
+    res.json(rows[0]);
+});
+
+// POST /api/auth/logout - clear the session cookie
+router.post('/logout', (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'lax',
+    });
+
+    res.json({ message: 'Logged out' });
+});
+
 
 export default router;

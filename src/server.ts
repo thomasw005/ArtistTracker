@@ -1,4 +1,5 @@
 import express, { type ErrorRequestHandler } from 'express';
+import cookieParser from 'cookie-parser';
 import { sql } from './db.js';
 import authRouter from './routes/auth.js';
 import artistsRouter from './routes/artists.js';
@@ -10,6 +11,7 @@ import performancesRouter from './routes/performances.js';
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 app.use('/api/auth', authRouter);
 app.use('/api/artists', artistsRouter);
 app.use('/api/venues', venuesRouter);

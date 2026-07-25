@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
+import { requireAuth } from '../auth/requireAuth.js';
 import type { Performance, PerformanceRow } from '../types.js';
 
 const router = Router();
@@ -41,7 +42,7 @@ router.get('/:eventId/:artistId', async (req, res) => {
 });
 
 // POST /api/performances - record that an artist performed at an event
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { event_id, artist_id, rating } = (req.body ?? {}) as Partial<Performance>;
 
     if (event_id == null || artist_id == null) {
@@ -58,7 +59,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/performances/:eventId/:artistId - update a performance's rating
-router.put('/:eventId/:artistId', async (req, res) => {
+router.put('/:eventId/:artistId', requireAuth, async (req, res) => {
     const { eventId, artistId } = req.params;
     const { rating } = (req.body ?? {}) as Pick<Partial<Performance>, 'rating'>;
 
@@ -76,7 +77,7 @@ router.put('/:eventId/:artistId', async (req, res) => {
 });
 
 // DELETE /api/performances/:eventId/:artistId - remove a performance
-router.delete('/:eventId/:artistId', async (req, res) => {
+router.delete('/:eventId/:artistId', requireAuth, async (req, res) => {
     const { eventId, artistId } = req.params;
     const rows = (await sql`
         DELETE FROM performances

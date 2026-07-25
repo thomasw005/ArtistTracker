@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
+import { requireAuth } from '../auth/requireAuth.js';
 import type {
     Event,
     EventDetailRow,
@@ -75,7 +76,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/events - create an event
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { price, event_date, venue_id, festival_id, notes, artists } =
         (req.body ?? {}) as Partial<Event> & { artists?: PerformanceInput[] };
 
@@ -103,7 +104,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/events/:id - update an event
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { price, event_date, venue_id, festival_id, notes } = (req.body ?? {}) as Partial<Event>;
 
@@ -137,7 +138,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/events/:id - delete an event
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`DELETE FROM events WHERE id = ${id} RETURNING *`) as Event[];
 

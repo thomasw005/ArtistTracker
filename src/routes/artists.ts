@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
+import { requireAuth } from '../auth/requireAuth.js';
 import type { Artist } from '../types.js';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/artists - create an artist
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, rating, page_link } = (req.body ?? {}) as Partial<Artist>;
 
     if (!name) {
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/artists/:id - update an artist
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, rating, page_link } = (req.body ?? {}) as Partial<Artist>;
 
@@ -62,7 +63,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/artists/:id - delete an artist
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`DELETE FROM artists WHERE id = ${id} RETURNING *`) as Artist[];
 

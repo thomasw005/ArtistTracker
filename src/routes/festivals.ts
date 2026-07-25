@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
+import { requireAuth } from '../auth/requireAuth.js';
 import type { Festival } from '../types.js';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/festivals - create a festival
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, price, year } = (req.body ?? {}) as Partial<Festival>;
 
     if (!name || price == null || year == null) {
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/festivals/:id - update a festival
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, price, year } = (req.body ?? {}) as Partial<Festival>;
 
@@ -62,7 +63,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/festivals/:id - delete a festival
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`DELETE FROM festivals WHERE id = ${id} RETURNING *`) as Festival[];
 

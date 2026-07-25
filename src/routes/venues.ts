@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
+import { requireAuth } from '../auth/requireAuth.js';
 import type { Venue } from '../types.js';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/venues - create a venue
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, city, rating, country } = (req.body ?? {}) as Partial<Venue>;
 
     if (!name) {
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/venues/:id - update a venue
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, city, rating, country } = (req.body ?? {}) as Partial<Venue>;
 
@@ -62,7 +63,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/venues/:id - delete a venue
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`DELETE FROM venues WHERE id = ${id} RETURNING *`) as Venue[];
 
