@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/performances - list all performances, with artist & event context
 router.get('/', async (req, res) => {
     const performances = (await sql`
-        SELECT p.event_id, p.artist_id, p.rating,
+        SELECT p.event_id, p.artist_id,
                a.name AS artist_name,
                e.event_date
         FROM performances p
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 router.get('/:eventId/:artistId', async (req, res) => {
     const { eventId, artistId } = req.params;
     const rows = (await sql`
-        SELECT p.event_id, p.artist_id, p.rating,
+        SELECT p.event_id, p.artist_id,
                a.name AS artist_name,
                e.event_date
         FROM performances p
@@ -43,7 +43,7 @@ router.get('/:eventId/:artistId', async (req, res) => {
 
 // POST /api/performances - record that an artist performed at an event
 router.post('/', requireAuth, async (req, res) => {
-    const { event_id, artist_id, rating } = (req.body ?? {}) as Partial<Performance>;
+    const { event_id, artist_id } = (req.body ?? {}) as Partial<Performance>;
 
     if (event_id == null || artist_id == null) {
         res.status(400).json({ error: 'event_id and artist_id are required' });
@@ -51,29 +51,11 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const [row] = (await sql`
-        INSERT INTO performances (event_id, artist_id, rating)
-        VALUES (${event_id}, ${artist_id}, ${rating ?? null})
+        INSERT INTO performances (event_id, artist_id)
+        VALUES (${event_id}, ${artist_id})
         RETURNING *
     `) as Performance[];
     res.status(201).json(row);
-});
-
-// PUT /api/performances/:eventId/:artistId - update a performance's rating
-router.put('/:eventId/:artistId', requireAuth, async (req, res) => {
-    const { eventId, artistId } = req.params;
-    const { rating } = (req.body ?? {}) as Pick<Partial<Performance>, 'rating'>;
-
-    const rows = (await sql`
-        UPDATE performances
-        SET rating = ${rating ?? null}
-        WHERE event_id = ${eventId} AND artist_id = ${artistId}
-        RETURNING *
-    `) as Performance[];
-    if (rows.length === 0) {
-        res.status(404).json({ error: 'Performance not found' });
-        return;
-    }
-    res.json(rows[0]);
 });
 
 // DELETE /api/performances/:eventId/:artistId - remove a performance

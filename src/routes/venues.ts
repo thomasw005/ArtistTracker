@@ -26,7 +26,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/venues - create a venue
 router.post('/', requireAuth, async (req, res) => {
-    const { name, city, rating, country } = (req.body ?? {}) as Partial<Venue>;
+    const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
     if (!name) {
         res.status(400).json({ error: 'name is required' });
@@ -34,8 +34,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const rows = (await sql`
-        INSERT INTO venues (name, city, rating, country)
-        VALUES (${name}, ${city ?? null}, ${rating ?? null}, ${country ?? null})
+        INSERT INTO venues (name, city, country)
+        VALUES (${name}, ${city ?? null}, ${country ?? null})
         RETURNING *
     `) as Venue[];
 
@@ -45,11 +45,11 @@ router.post('/', requireAuth, async (req, res) => {
 // PUT /api/venues/:id - update a venue
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { name, city, rating, country } = (req.body ?? {}) as Partial<Venue>;
+    const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
     const rows = (await sql`
         UPDATE venues
-        SET name = ${name}, city = ${city ?? null}, rating = ${rating ?? null}, country = ${country ?? null}
+        SET name = ${name}, city = ${city ?? null}, country = ${country ?? null}
         WHERE id = ${id}
         RETURNING *
     `) as Venue[];

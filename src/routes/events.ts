@@ -14,7 +14,7 @@ const router = Router();
 // GET /api/events - list all events (lean: enough to render a row + navigate)
 router.get('/', async (req, res) => {
     const events = (await sql`
-        SELECT e.id, e.event_date, e.price, e.venue_id, e.festival_id,
+        SELECT e.id, e.name, e.event_date, e.venue_id, e.festival_id,
                v.name AS venue_name,
                f.name AS festival_name, f.year AS festival_year
         FROM events e
@@ -30,8 +30,8 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`
         SELECT e.*,
-               v.name AS venue_name, v.city AS venue_city, v.rating AS venue_rating, v.country AS venue_country,
-               f.name AS festival_name, f.year AS festival_year, f.price AS festival_price
+               v.name AS venue_name, v.city AS venue_city, v.country AS venue_country,
+               f.name AS festival_name, f.year AS festival_year
         FROM events e
         LEFT JOIN venues v    ON v.id = e.venue_id
         LEFT JOIN festivals f ON f.id = e.festival_id
@@ -45,7 +45,7 @@ router.get('/:id', async (req, res) => {
 
     // The lineup (artists who performed at this event)
     const lineup = (await sql`
-        SELECT a.id, a.name, a.rating AS artist_rating, p.rating AS performance_rating, a.page_link
+        SELECT a.id, a.name, a.page_link
         FROM performances p
         JOIN artists a ON a.id = p.artist_id
         WHERE p.event_id = ${id}
@@ -55,21 +55,18 @@ router.get('/:id', async (req, res) => {
     const row = rows[0];
     res.json({
         id: row.id,
+        name: row.name,
         event_date: row.event_date,
-        price: row.price,
-        notes: row.notes,
         venue: row.venue_id ? {
             id: row.venue_id,
             name: row.venue_name,
             city: row.venue_city,
-            rating: row.venue_rating,
             country: row.venue_country,
         } : null,
         festival: row.festival_id ? {
             id: row.festival_id,
             name: row.festival_name,
             year: row.festival_year,
-            price: row.festival_price,
         } : null,
         lineup,
     });
@@ -77,7 +74,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/events - create an event
 router.post('/', requireAuth, async (req, res) => {
-    const { price, event_date, venue_id, festival_id, notes, artists } =
+    const { name, event_date, venue_id, festival_id, artists } =
         (req.body ?? {}) as Partial<Event> & { artists?: PerformanceInput[] };
 
     if (!event_date) {
@@ -86,16 +83,16 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const [event] = (await sql`
-        INSERT INTO events (price, event_date, venue_id, festival_id, notes)
-        VALUES (${price ?? null}, ${event_date}, ${venue_id ?? null}, ${festival_id ?? null}, ${notes ?? null})
+        INSERT INTO events (name, event_date, venue_id, festival_id)
+        VALUES (${name ?? null}, ${event_date}, ${venue_id ?? null}, ${festival_id ?? null})
         RETURNING *
     `) as Event[];
 
     if (Array.isArray(artists)) {
         for (const a of artists) {
             await sql`
-                INSERT INTO performances (event_id, artist_id, rating)
-                VALUES (${event.id}, ${a.artist_id}, ${a.rating ?? null})
+                INSERT INTO performances (event_id, artist_id)
+                VALUES (${event.id}, ${a.artist_id})
             `;
         }
     }
@@ -106,7 +103,7 @@ router.post('/', requireAuth, async (req, res) => {
 // PUT /api/events/:id - update an event
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { price, event_date, venue_id, festival_id, notes } = (req.body ?? {}) as Partial<Event>;
+    const { name, event_date, venue_id, festival_id } = (req.body ?? {}) as Partial<Event>;
 
     if (!event_date) {
         res.status(400).json({ error: 'event_date is required' });
@@ -120,11 +117,10 @@ router.put('/:id', requireAuth, async (req, res) => {
 
     const rows = (await sql`
         UPDATE events
-        SET price = ${price ?? null},
+        SET name = ${name ?? null},
             event_date = ${event_date},
             venue_id = ${venue_id ?? null},
-            festival_id = ${festival_id ?? null},
-            notes = ${notes ?? null}
+            festival_id = ${festival_id ?? null}
         WHERE id = ${id}
         RETURNING *
     `) as Event[];

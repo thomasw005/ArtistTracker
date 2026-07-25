@@ -26,16 +26,16 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/festivals - create a festival
 router.post('/', requireAuth, async (req, res) => {
-    const { name, price, year } = (req.body ?? {}) as Partial<Festival>;
+    const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
-    if (!name || price == null || year == null) {
-        res.status(400).json({ error: 'name, price, and year are required' });
+    if (!name || year == null) {
+        res.status(400).json({ error: 'name and year are required' });
         return;
     }
 
     const rows = (await sql`
-        INSERT INTO festivals (name, price, year)
-        VALUES (${name}, ${price}, ${year})
+        INSERT INTO festivals (name, year)
+        VALUES (${name}, ${year})
         RETURNING *
     `) as Festival[];
 
@@ -45,11 +45,11 @@ router.post('/', requireAuth, async (req, res) => {
 // PUT /api/festivals/:id - update a festival
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { name, price, year } = (req.body ?? {}) as Partial<Festival>;
+    const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
     const rows = (await sql`
         UPDATE festivals
-        SET name = ${name}, price = ${price}, year = ${year}
+        SET name = ${name}, year = ${year}
         WHERE id = ${id}
         RETURNING *
     `) as Festival[];

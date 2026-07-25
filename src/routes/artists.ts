@@ -26,7 +26,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/artists - create an artist
 router.post('/', requireAuth, async (req, res) => {
-    const { name, rating, page_link } = (req.body ?? {}) as Partial<Artist>;
+    const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
 
     if (!name) {
         res.status(400).json({ error: 'name is required' });
@@ -34,8 +34,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const rows = (await sql`
-        INSERT INTO artists (name, rating, page_link)
-        VALUES (${name}, ${rating ?? null}, ${page_link ?? null})
+        INSERT INTO artists (name, page_link)
+        VALUES (${name}, ${page_link ?? null})
         RETURNING *
     `) as Artist[];
 
@@ -45,11 +45,11 @@ router.post('/', requireAuth, async (req, res) => {
 // PUT /api/artists/:id - update an artist
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { name, rating, page_link } = (req.body ?? {}) as Partial<Artist>;
+    const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
 
     const rows = (await sql`
         UPDATE artists
-        SET name = ${name}, rating = ${rating ?? null}, page_link = ${page_link ?? null}
+        SET name = ${name}, page_link = ${page_link ?? null}
         WHERE id = ${id}
         RETURNING *
     `) as Artist[];
