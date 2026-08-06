@@ -12,3 +12,14 @@ export const catalogCreateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+// Blunts brute-forcing of the auth endpoints. These run BEFORE auth, so there's
+// no user to key on — it falls back to the default per-IP key. Behind a proxy
+// you must set `app.set('trust proxy', ...)` for req.ip to be accurate.
+export const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,                  // 10 attempts per IP per window
+    message: { error: 'Too many attempts. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});

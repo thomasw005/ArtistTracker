@@ -1,26 +1,44 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
-import type { Venue } from '../types.js';
+import type { Venue, VenueWithRatings } from '../types.js';
 
 const router = Router();
 
-// GET /api/venues - list venues, optionally filtered by ?search=
-router.get('/', async (req, res) => {
+// GET /api/venues - list venues (with rating aggregates), optional ?search=
+router.get('/', optionalAuth, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search : '';
     const pattern = `%${search}%`;
     const venues = (await sql`
-        SELECT * FROM venues WHERE name ILIKE ${pattern} ORDER BY name
-    `) as Venue[];
+        SELECT v.*,
+               ROUND(AVG(uv.rating), 2)                                        AS avg_rating,
+               COUNT(uv.rating)::int                                           AS rating_count,
+               MAX(uv.rating) FILTER (WHERE uv.user_id = ${req.userId ?? null}) AS my_rating
+        FROM venues v
+        LEFT JOIN user_venues uv ON uv.venue_id = v.id
+        WHERE v.name ILIKE ${pattern}
+        GROUP BY v.id
+        ORDER BY v.name
+    `) as VenueWithRatings[];
     res.json(venues);
 });
 
-// GET /api/venues/:id - get one venue
-router.get('/:id', async (req, res) => {
+// GET /api/venues/:id - get one venue (with rating aggregates)
+router.get('/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const rows = (await sql`SELECT * FROM venues WHERE id = ${id}`) as Venue[];
+    const rows = (await sql`
+        SELECT v.*,
+               ROUND(AVG(uv.rating), 2)                                        AS avg_rating,
+               COUNT(uv.rating)::int                                           AS rating_count,
+               MAX(uv.rating) FILTER (WHERE uv.user_id = ${req.userId ?? null}) AS my_rating
+        FROM venues v
+        LEFT JOIN user_venues uv ON uv.venue_id = v.id
+        WHERE v.id = ${id}
+        GROUP BY v.id
+    `) as VenueWithRatings[];
 
     if (rows.length === 0) {
         res.status(404).json({ error: 'Venue not found' });

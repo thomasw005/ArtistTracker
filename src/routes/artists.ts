@@ -1,26 +1,44 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
-import type { Artist } from '../types.js';
+import type { Artist, ArtistWithRatings } from '../types.js';
 
 const router = Router();
 
-// GET /api/artists - list artists, optionally filtered by ?search=
-router.get('/', async (req, res) => {
+// GET /api/artists - list artists (with rating aggregates), optional ?search=
+router.get('/', optionalAuth, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search : '';
     const pattern = `%${search}%`;
     const artists = (await sql`
-        SELECT * FROM artists WHERE name ILIKE ${pattern} ORDER BY name
-    `) as Artist[];
+        SELECT a.*,
+               ROUND(AVG(ua.rating), 2)                                        AS avg_rating,
+               COUNT(ua.rating)::int                                           AS rating_count,
+               MAX(ua.rating) FILTER (WHERE ua.user_id = ${req.userId ?? null}) AS my_rating
+        FROM artists a
+        LEFT JOIN user_artists ua ON ua.artist_id = a.id
+        WHERE a.name ILIKE ${pattern}
+        GROUP BY a.id
+        ORDER BY a.name
+    `) as ArtistWithRatings[];
     res.json(artists);
 });
 
-// GET /api/artists/:id - get one artist
-router.get('/:id', async (req, res) => {
+// GET /api/artists/:id - get one artist (with rating aggregates)
+router.get('/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const rows = (await sql`SELECT * FROM artists WHERE id = ${id}`) as Artist[];
+    const rows = (await sql`
+        SELECT a.*,
+               ROUND(AVG(ua.rating), 2)                                        AS avg_rating,
+               COUNT(ua.rating)::int                                           AS rating_count,
+               MAX(ua.rating) FILTER (WHERE ua.user_id = ${req.userId ?? null}) AS my_rating
+        FROM artists a
+        LEFT JOIN user_artists ua ON ua.artist_id = a.id
+        WHERE a.id = ${id}
+        GROUP BY a.id
+    `) as ArtistWithRatings[];
 
     if (rows.length === 0) {
         res.status(404).json({ error: 'Artist not found' });

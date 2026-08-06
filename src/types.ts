@@ -181,3 +181,26 @@ export interface MyPerformance {
   event_date: string;
   rating: number | null;
 }
+
+// --- Rating aggregates attached to public catalog reads. ---
+// avg_rating is NUMERIC from AVG(), so it comes back as a string (or null when
+// nobody has rated). rating_count is cast to int. my_rating is the current
+// user's own rating, or null when logged out / unrated.
+
+export interface RatingAggregates {
+  avg_rating: string | null;
+  rating_count: number;
+  my_rating: number | null;
+}
+
+export interface ArtistWithRatings extends Artist, RatingAggregates {}
+export interface VenueWithRatings extends Venue, RatingAggregates {}
+export interface EventListRowWithRatings extends EventListRow, RatingAggregates {}
+
+// A festival's rating is DERIVED from the ratings of its events, so both the
+// community average and the user's own value are averages (NUMERIC -> string).
+export interface FestivalWithRatings extends Festival {
+  avg_rating: string | null;
+  rating_count: number;
+  my_rating: string | null;
+}

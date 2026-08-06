@@ -5,12 +5,13 @@ import { verifyPassword } from '../auth/password.js';
 import { signToken } from '../auth/jwt.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { TOKEN_COOKIE, tokenCookieOptions, TOKEN_MAX_AGE } from '../auth/cookies.js';
+import { authLimiter } from '../middleware/rateLimit.js';
 import type { User } from '../types.js';
 
 const router = Router();
 
 // POST /api/auth/register - create a new user account
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
     const { email, username, password } = (req.body ?? {}) as Partial<User> & { password?: string };
 
     if (!email || !username || !password) {
@@ -30,7 +31,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login - verify credentials and issue a session cookie
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
     const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
 
     if (!email || !password) {

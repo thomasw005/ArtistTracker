@@ -1,48 +1,58 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
 import type {
     Event,
     EventDetailRow,
-    EventListRow,
+    EventListRowWithRatings,
     LineupRow,
     PerformanceInput,
+    RatingAggregates,
 } from '../types.js';
 
 const router = Router();
 
 // GET /api/events - list all events (lean: enough to render a row + navigate)
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search : '';
     const pattern = `%${search}%`;
     const events = (await sql`
         SELECT e.id, e.name, e.event_date, e.venue_id, e.festival_id,
                e.created_by, e.verified,
                v.name AS venue_name,
-               f.name AS festival_name, f.year AS festival_year
+               f.name AS festival_name, f.year AS festival_year,
+               (SELECT ROUND(AVG(ue.rating), 2) FROM user_events ue WHERE ue.event_id = e.id) AS avg_rating,
+               (SELECT COUNT(ue.rating)::int    FROM user_events ue WHERE ue.event_id = e.id) AS rating_count,
+               (SELECT ue.rating FROM user_events ue
+                 WHERE ue.event_id = e.id AND ue.user_id = ${req.userId ?? null}) AS my_rating
         FROM events e
         LEFT JOIN venues v    ON v.id = e.venue_id
         LEFT JOIN festivals f ON f.id = e.festival_id
         WHERE COALESCE(e.name, '') ILIKE ${pattern}
         ORDER BY e.event_date DESC
-    `) as EventListRow[];
+    `) as EventListRowWithRatings[];
     res.json(events);
 });
 
 // GET /api/events/:id - get one event (rich: nested venue, festival, and lineup)
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const rows = (await sql`
         SELECT e.*,
                v.name AS venue_name, v.city AS venue_city, v.country AS venue_country,
-               f.name AS festival_name, f.year AS festival_year
+               f.name AS festival_name, f.year AS festival_year,
+               (SELECT ROUND(AVG(ue.rating), 2) FROM user_events ue WHERE ue.event_id = e.id) AS avg_rating,
+               (SELECT COUNT(ue.rating)::int    FROM user_events ue WHERE ue.event_id = e.id) AS rating_count,
+               (SELECT ue.rating FROM user_events ue
+                 WHERE ue.event_id = e.id AND ue.user_id = ${req.userId ?? null}) AS my_rating
         FROM events e
         LEFT JOIN venues v    ON v.id = e.venue_id
         LEFT JOIN festivals f ON f.id = e.festival_id
         WHERE e.id = ${id}
-    `) as EventDetailRow[];
+    `) as (EventDetailRow & RatingAggregates)[];
 
     if (rows.length === 0) {
         res.status(404).json({ error: 'Event not found' });
@@ -65,6 +75,9 @@ router.get('/:id', async (req, res) => {
         verified: row.verified,
         created_by: row.created_by,
         event_date: row.event_date,
+        avg_rating: row.avg_rating,
+        rating_count: row.rating_count,
+        my_rating: row.my_rating,
         venue: row.venue_id ? {
             id: row.venue_id,
             name: row.venue_name,

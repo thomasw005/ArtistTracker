@@ -1,26 +1,49 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
-import type { Festival } from '../types.js';
+import type { Festival, FestivalWithRatings } from '../types.js';
 
 const router = Router();
 
-// GET /api/festivals - list festivals, optionally filtered by ?search=
-router.get('/', async (req, res) => {
+// A festival's rating is derived from the ratings of its events (user_events),
+// so both the community average and the user's own value are averages.
+
+// GET /api/festivals - list festivals (with derived ratings), optional ?search=
+router.get('/', optionalAuth, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search : '';
     const pattern = `%${search}%`;
     const festivals = (await sql`
-        SELECT * FROM festivals WHERE name ILIKE ${pattern} ORDER BY year DESC, name
-    `) as Festival[];
+        SELECT f.*,
+               ROUND(AVG(ue.rating), 2)                                          AS avg_rating,
+               COUNT(ue.rating)::int                                             AS rating_count,
+               ROUND(AVG(ue.rating) FILTER (WHERE ue.user_id = ${req.userId ?? null}), 2) AS my_rating
+        FROM festivals f
+        LEFT JOIN events e       ON e.festival_id = f.id
+        LEFT JOIN user_events ue ON ue.event_id = e.id
+        WHERE f.name ILIKE ${pattern}
+        GROUP BY f.id
+        ORDER BY f.year DESC, f.name
+    `) as FestivalWithRatings[];
     res.json(festivals);
 });
 
-// GET /api/festivals/:id - get one festival
-router.get('/:id', async (req, res) => {
+// GET /api/festivals/:id - get one festival (with derived ratings)
+router.get('/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const rows = (await sql`SELECT * FROM festivals WHERE id = ${id}`) as Festival[];
+    const rows = (await sql`
+        SELECT f.*,
+               ROUND(AVG(ue.rating), 2)                                          AS avg_rating,
+               COUNT(ue.rating)::int                                             AS rating_count,
+               ROUND(AVG(ue.rating) FILTER (WHERE ue.user_id = ${req.userId ?? null}), 2) AS my_rating
+        FROM festivals f
+        LEFT JOIN events e       ON e.festival_id = f.id
+        LEFT JOIN user_events ue ON ue.event_id = e.id
+        WHERE f.id = ${id}
+        GROUP BY f.id
+    `) as FestivalWithRatings[];
 
     if (rows.length === 0) {
         res.status(404).json({ error: 'Festival not found' });
