@@ -16,7 +16,6 @@ CREATE TABLE users (
     email           TEXT NOT NULL UNIQUE,
     username        TEXT NOT NULL UNIQUE,
     password_hash   TEXT NOT NULL,
-    is_admin        BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
