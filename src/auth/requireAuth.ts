@@ -24,11 +24,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     // The token is cryptographically valid, but the user it names may have been
-    // deleted since it was issued. Confirm the row still exists, and pick up
-    // whether they're an admin while we're here.
+    // deleted since it was issued. Confirm the row still exists.
     const rows = (await sql`
-        SELECT id, is_admin FROM users WHERE id = ${userId}
-    `) as Pick<User, 'id' | 'is_admin'>[];
+        SELECT id FROM users WHERE id = ${userId}
+    `) as Pick<User, 'id'>[];
 
     if (rows.length === 0) {
         res.status(401).json({ error: 'Invalid token, User no longer exists' });
@@ -36,6 +35,5 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.userId = userId;
-    req.isAdmin = rows[0].is_admin;
     next();
 }

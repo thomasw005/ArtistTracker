@@ -3,7 +3,6 @@ import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
-import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
 import type { Venue, VenueWithRatings } from '../types.js';
 
 const router = Router();
@@ -66,20 +65,10 @@ router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     res.status(201).json(rows[0]);
 });
 
-// PUT /api/venues/:id - update a venue (creator or admin only)
+// PUT /api/venues/:id - update a venue (any signed-in user)
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
-
-    const [existing] = (await sql`
-        SELECT created_by, verified FROM venues WHERE id = ${id}
-    `) as CatalogGuardRow[];
-
-    const permError = catalogEditError(existing, req);
-    if (permError) {
-        res.status(permError.status).json({ error: permError.message });
-        return;
-    }
 
     const rows = (await sql`
         UPDATE venues
@@ -88,24 +77,25 @@ router.put('/:id', requireAuth, async (req, res) => {
         RETURNING *
     `) as Venue[];
 
-    res.json(rows[0]);
-});
-
-// DELETE /api/venues/:id - delete a venue (creator or admin only)
-router.delete('/:id', requireAuth, async (req, res) => {
-    const { id } = req.params;
-
-    const [existing] = (await sql`
-        SELECT created_by, verified FROM venues WHERE id = ${id}
-    `) as CatalogGuardRow[];
-
-    const permError = catalogEditError(existing, req);
-    if (permError) {
-        res.status(permError.status).json({ error: permError.message });
+    if (rows.length === 0) {
+        res.status(404).json({ error: 'Venue not found' });
         return;
     }
 
-    await sql`DELETE FROM venues WHERE id = ${id}`;
+    res.json(rows[0]);
+});
+
+// DELETE /api/venues/:id - delete a venue (any signed-in user)
+router.delete('/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+
+    const rows = (await sql`DELETE FROM venues WHERE id = ${id} RETURNING *`) as Venue[];
+
+    if (rows.length === 0) {
+        res.status(404).json({ error: 'Venue not found' });
+        return;
+    }
+
     res.status(204).send(); // 204 - success
 });
 

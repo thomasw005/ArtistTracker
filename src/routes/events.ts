@@ -3,7 +3,6 @@ import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
 import { catalogCreateLimiter } from '../middleware/rateLimit.js';
-import { catalogEditError, type CatalogGuardRow } from '../auth/catalogPermissions.js';
 import type {
     Event,
     EventDetailRow,
@@ -121,7 +120,7 @@ router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
     res.status(201).json(event);
 });
 
-// PUT /api/events/:id - update an event (creator or admin only)
+// PUT /api/events/:id - update an event (any signed-in user)
 router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, event_date, venue_id, festival_id } = (req.body ?? {}) as Partial<Event>;
@@ -136,16 +135,6 @@ router.put('/:id', requireAuth, async (req, res) => {
         return;
     }
 
-    const [existing] = (await sql`
-        SELECT created_by, verified FROM events WHERE id = ${id}
-    `) as CatalogGuardRow[];
-
-    const permError = catalogEditError(existing, req);
-    if (permError) {
-        res.status(permError.status).json({ error: permError.message });
-        return;
-    }
-
     const rows = (await sql`
         UPDATE events
         SET name = ${name ?? null},
@@ -156,22 +145,17 @@ router.put('/:id', requireAuth, async (req, res) => {
         RETURNING *
     `) as Event[];
 
+    if (rows.length === 0) {
+        res.status(404).json({ error: 'Event not found' });
+        return;
+    }
+
     res.json(rows[0]);
 });
 
-// DELETE /api/events/:id - delete an event (creator or admin only)
+// DELETE /api/events/:id - delete an event (any signed-in user)
 router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
-
-    const [existing] = (await sql`
-        SELECT created_by, verified FROM events WHERE id = ${id}
-    `) as CatalogGuardRow[];
-
-    const permError = catalogEditError(existing, req);
-    if (permError) {
-        res.status(permError.status).json({ error: permError.message });
-        return;
-    }
 
     const rows = (await sql`DELETE FROM events WHERE id = ${id} RETURNING *`) as Event[];
 
