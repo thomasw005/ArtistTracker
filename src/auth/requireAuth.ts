@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { sql } from '../db.js';
-import { verifyToken } from './jwt.js';
+import { verifyToken, type TokenPayload } from './jwt.js';
 import type { User } from '../types.js';
 
 // Middleware that blocks a request unless it carries a valid JWT cookie AND
@@ -14,26 +14,31 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         return;
     }
 
-    let userId: number;
+    let payload: TokenPayload;
     try {
-        userId = verifyToken(token).userId;
+        payload = verifyToken(token);
     } catch {
         // verifyToken throws if the token is missing, tampered with, or expired
         res.status(401).json({ error: 'Invalid or expired token' });
         return;
     }
 
-    // The token is cryptographically valid, but the user it names may have been
-    // deleted since it was issued. Confirm the row still exists.
+    // The signature is valid, but the session can still be dead two ways: the
+    // user was deleted, or this exact token was revoked by a logout. Both are
+    // checked in one round trip.
     const rows = (await sql`
-        SELECT id FROM users WHERE id = ${userId}
+        SELECT u.id FROM users u
+        WHERE u.id = ${payload.userId}
+          AND NOT EXISTS (
+              SELECT 1 FROM revoked_tokens rt WHERE rt.jti = ${payload.jti}
+          )
     `) as Pick<User, 'id'>[];
 
     if (rows.length === 0) {
-        res.status(401).json({ error: 'Invalid token, User no longer exists' });
+        res.status(401).json({ error: 'Session is no longer valid' });
         return;
     }
 
-    req.userId = userId;
+    req.userId = payload.userId;
     next();
 }

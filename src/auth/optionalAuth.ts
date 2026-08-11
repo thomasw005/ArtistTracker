@@ -15,9 +15,15 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
     }
 
     try {
-        const { userId } = verifyToken(token);
+        const { userId, jti } = verifyToken(token);
+        // Same two checks as requireAuth: the user still exists, and this token
+        // wasn't revoked by a logout. Failing either just means "anonymous".
         const rows = (await sql`
-            SELECT id FROM users WHERE id = ${userId}
+            SELECT u.id FROM users u
+            WHERE u.id = ${userId}
+              AND NOT EXISTS (
+                  SELECT 1 FROM revoked_tokens rt WHERE rt.jti = ${jti}
+              )
         `) as Pick<User, 'id'>[];
         if (rows.length > 0) {
             req.userId = userId;

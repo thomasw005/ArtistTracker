@@ -1,4 +1,5 @@
 -- child tables first
+DROP TABLE IF EXISTS revoked_tokens;
 DROP TABLE IF EXISTS user_performances;
 DROP TABLE IF EXISTS user_events;
 DROP TABLE IF EXISTS user_festivals;
@@ -18,6 +19,16 @@ CREATE TABLE users (
     password_hash   TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT now()
 );
+
+-- Tokens killed by an explicit logout, held until the moment they would have
+-- expired on their own. After that the JWT's own `exp` check rejects them, so
+-- the row is dead weight and logout sweeps it away.
+CREATE TABLE revoked_tokens (
+    jti             TEXT PRIMARY KEY,
+    expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX revoked_tokens_expires_at_idx ON revoked_tokens (expires_at);
 
 CREATE TABLE artists (
     id              SERIAL PRIMARY KEY,

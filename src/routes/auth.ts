@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { hashPassword } from '../auth/password.js';
 import { verifyPassword } from '../auth/password.js';
-import { signToken } from '../auth/jwt.js';
+import { signToken, verifyToken } from '../auth/jwt.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { TOKEN_COOKIE, tokenCookieOptions, TOKEN_MAX_AGE } from '../auth/cookies.js';
 import type { User } from '../types.js';
@@ -45,7 +45,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Log the new account straight in, so signing up is a single request.
-    const token = signToken({ userId: user.id });
+    const token = signToken(user.id);
     res.cookie(TOKEN_COOKIE, token, { ...tokenCookieOptions, maxAge: TOKEN_MAX_AGE });
 
     res.status(201).json(user);
@@ -73,7 +73,7 @@ router.post('/login', async (req, res) => {
         return;
     }
 
-    const token = signToken({ userId: user.id });
+    const token = signToken(user.id);
 
     res.cookie(TOKEN_COOKIE, token, { ...tokenCookieOptions, maxAge: TOKEN_MAX_AGE });
 
@@ -98,8 +98,34 @@ router.get('/me', requireAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/auth/logout - clear the session cookie
-router.post('/logout', (req, res) => {
+// POST /api/auth/logout - revoke the token and clear the session cookie.
+// Deliberately NOT behind requireAuth: logging out should always succeed and
+// clear the cookie, even if the token is already expired or garbage.
+router.post('/logout', async (req, res) => {
+    const token = req.cookies?.[TOKEN_COOKIE];
+
+    if (token) {
+        try {
+            const { jti, exp } = verifyToken(token);
+
+            // Remember this token as dead until the moment it would have expired
+            // anyway. ON CONFLICT makes a double logout a no-op rather than a 500.
+            await sql`
+                INSERT INTO revoked_tokens (jti, expires_at)
+                VALUES (${jti}, to_timestamp(${exp}))
+                ON CONFLICT (jti) DO NOTHING
+            `;
+
+            // Past their expiry, revoked rows are redundant - the JWT's own exp
+            // check already rejects those tokens. Sweeping here keeps the table
+            // bounded by "logouts in the last 7 days" with no cron job.
+            await sql`DELETE FROM revoked_tokens WHERE expires_at < now()`;
+        } catch {
+            // Expired or tampered-with token: nothing worth revoking. Fall
+            // through and clear the cookie anyway.
+        }
+    }
+
     res.clearCookie(TOKEN_COOKIE, tokenCookieOptions);
 
     res.json({ message: 'Logged out' });
