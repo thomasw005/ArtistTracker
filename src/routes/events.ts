@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
-import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type {
     Event,
     EventDetailRow,
@@ -93,7 +92,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // POST /api/events - create an event
-router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, event_date, venue_id, festival_id, artists } =
         (req.body ?? {}) as Partial<Event> & { artists?: PerformanceInput[] };
 

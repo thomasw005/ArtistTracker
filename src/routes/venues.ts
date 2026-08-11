@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
-import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type { Venue, VenueWithRatings } from '../types.js';
 
 const router = Router();
@@ -48,7 +47,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // POST /api/venues - create a venue (added to the shared catalog)
-router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
     if (!name) {

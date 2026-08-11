@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
-import { catalogCreateLimiter } from '../middleware/rateLimit.js';
 import type { Festival, FestivalWithRatings } from '../types.js';
 
 const router = Router();
@@ -53,7 +52,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // POST /api/festivals - create a festival (added to the shared catalog)
-router.post('/', requireAuth, catalogCreateLimiter, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
     if (!name || year == null) {
