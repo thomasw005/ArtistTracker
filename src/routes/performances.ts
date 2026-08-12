@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/performances - list all performances, with artist & event context
 router.get('/', async (req, res) => {
     const performances = (await sql`
-        SELECT p.event_id, p.artist_id,
+        SELECT p.event_id, p.artist_id, p.created_by, p.verified,
                a.name AS artist_name,
                e.event_date
         FROM performances p
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 router.get('/:eventId/:artistId', async (req, res) => {
     const { eventId, artistId } = req.params;
     const rows = (await sql`
-        SELECT p.event_id, p.artist_id,
+        SELECT p.event_id, p.artist_id, p.created_by, p.verified,
                a.name AS artist_name,
                e.event_date
         FROM performances p
@@ -51,8 +51,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const [row] = (await sql`
-        INSERT INTO performances (event_id, artist_id)
-        VALUES (${event_id}, ${artist_id})
+        INSERT INTO performances (event_id, artist_id, created_by)
+        VALUES (${event_id}, ${artist_id}, ${req.userId})
         RETURNING *
     `) as Performance[];
     res.status(201).json(row);

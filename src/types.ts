@@ -47,6 +47,8 @@ export interface Event {
 export interface Performance {
   event_id: number;
   artist_id: number;
+  created_by: number | null;
+  verified: boolean;
 }
 
 // --- Shapes returned by the joined queries. ---
@@ -77,11 +79,17 @@ export interface EventDetailRow extends Event {
   festival_year: number | null;
 }
 
-/** The lineup query on GET /api/events/:id. */
+/**
+ * The lineup query on GET /api/events/:id. id/name/page_link describe the
+ * artist; created_by/verified describe the lineup entry itself — who claimed
+ * this artist played, and whether that claim has been vetted.
+ */
 export interface LineupRow {
   id: number;
   name: string;
   page_link: string | null;
+  created_by: number | null;
+  verified: boolean;
 }
 
 /** GET /api/performances - performance plus artist & event context. */

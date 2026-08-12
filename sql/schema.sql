@@ -78,6 +78,8 @@ CREATE TABLE events (
 CREATE TABLE performances (
     event_id        INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     artist_id       INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified        BOOLEAN NOT NULL DEFAULT false,
     PRIMARY KEY (event_id, artist_id)
 );
 

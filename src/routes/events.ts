@@ -59,7 +59,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
     // The lineup (artists who performed at this event)
     const lineup = (await sql`
-        SELECT a.id, a.name, a.page_link
+        SELECT a.id, a.name, a.page_link,
+               p.created_by, p.verified
         FROM performances p
         JOIN artists a ON a.id = p.artist_id
         WHERE p.event_id = ${id}
@@ -110,8 +111,8 @@ router.post('/', requireAuth, async (req, res) => {
     if (Array.isArray(artists)) {
         for (const a of artists) {
             await sql`
-                INSERT INTO performances (event_id, artist_id)
-                VALUES (${event.id}, ${a.artist_id})
+                INSERT INTO performances (event_id, artist_id, created_by)
+                VALUES (${event.id}, ${a.artist_id}, ${req.userId})
             `;
         }
     }
