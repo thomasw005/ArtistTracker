@@ -1,14 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { sql } from '../src/db.js';
 
+// Read in file
 const file = process.argv[2] ?? 'sql/schema.sql';
 const text = readFileSync(file, 'utf8');
 
+// Parse statements
 const statements = text
   .split(';')
   .map(s => s.trim())
   .filter(s => s.length > 0);
 
+// Run statements
 console.log(`Running ${statements.length} statements from ${file}...`);
 for (const statement of statements) {
   await sql.query(statement);

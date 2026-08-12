@@ -28,6 +28,8 @@ CREATE TABLE revoked_tokens (
     expires_at      TIMESTAMPTZ NOT NULL
 );
 
+-- At the cost of an extra write when inserting to revoked_tokens, index allows
+-- for quicker lookup when finding expired rows.
 CREATE INDEX revoked_tokens_expires_at_idx ON revoked_tokens (expires_at);
 
 CREATE TABLE artists (
