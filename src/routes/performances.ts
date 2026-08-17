@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
+import { requireAdmin } from '../auth/requireAdmin.js';
 import type { Performance, PerformanceRow } from '../types.js';
 
 const router = Router();
@@ -42,7 +43,8 @@ router.get('/:eventId/:artistId', async (req, res) => {
 });
 
 // POST /api/performances - record that an artist performed at an event
-router.post('/', requireAuth, async (req, res) => {
+// (admin only, until per-user contribution permissions exist)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     const { event_id, artist_id } = (req.body ?? {}) as Partial<Performance>;
 
     if (event_id == null || artist_id == null) {
@@ -58,8 +60,8 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(201).json(row);
 });
 
-// DELETE /api/performances/:eventId/:artistId - remove a performance
-router.delete('/:eventId/:artistId', requireAuth, async (req, res) => {
+// DELETE /api/performances/:eventId/:artistId - remove a performance (admin only)
+router.delete('/:eventId/:artistId', requireAuth, requireAdmin, async (req, res) => {
     const { eventId, artistId } = req.params;
     const rows = (await sql`
         DELETE FROM performances

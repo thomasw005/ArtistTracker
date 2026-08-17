@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
+import { requireAdmin } from '../auth/requireAdmin.js';
 import type {
     Event,
     EventDetailRow,
@@ -92,8 +93,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
     });
 });
 
-// POST /api/events - create an event
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/events - create an event (admin only, until per-user
+// contribution permissions exist)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     const { name, event_date, venue_id, festival_id, artists } =
         (req.body ?? {}) as Partial<Event> & { artists?: PerformanceInput[] };
 
@@ -120,8 +122,8 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(201).json(event);
 });
 
-// PUT /api/events/:id - update an event (any signed-in user)
-router.put('/:id', requireAuth, async (req, res) => {
+// PUT /api/events/:id - update an event (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { name, event_date, venue_id, festival_id } = (req.body ?? {}) as Partial<Event>;
 
@@ -153,8 +155,8 @@ router.put('/:id', requireAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// DELETE /api/events/:id - delete an event (any signed-in user)
-router.delete('/:id', requireAuth, async (req, res) => {
+// DELETE /api/events/:id - delete an event (admin only)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     const rows = (await sql`DELETE FROM events WHERE id = ${id} RETURNING *`) as Event[];

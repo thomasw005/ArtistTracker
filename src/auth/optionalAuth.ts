@@ -19,14 +19,15 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
         // Same two checks as requireAuth: the user still exists, and this token
         // wasn't revoked by a logout. Failing either just means "anonymous".
         const rows = (await sql`
-            SELECT u.id FROM users u
+            SELECT u.id, u.is_admin FROM users u
             WHERE u.id = ${userId}
               AND NOT EXISTS (
                   SELECT 1 FROM revoked_tokens rt WHERE rt.jti = ${jti}
               )
-        `) as Pick<User, 'id'>[];
+        `) as Pick<User, 'id' | 'is_admin'>[];
         if (rows.length > 0) {
             req.userId = userId;
+            req.isAdmin = rows[0].is_admin;
         }
     } catch {
         // Invalid/expired token on a public route → just treat as anonymous.

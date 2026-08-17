@@ -55,6 +55,16 @@ INSERT INTO users (email, username, password_hash) VALUES
   ('demo@example.com', 'demo',
    '$2b$12$BbrsAMCbQSr7HE05I8z7L.b9wWJK8YvXPU0Geaq1ppUUTku0GgwCe');  -- id 1
 
+-- An admin, since catalog writes (POST/PUT/DELETE on artists, venues,
+-- festivals, events, performances) now require one and nothing can grant the
+-- flag through the API. Same password as demo, but hashed separately, so the
+-- salt (and therefore the whole string) differs — matching hashes would only
+-- ever show up if someone copy-pasted one. Leaving demo non-admin keeps a
+-- normal account around to check that those routes 403 for everyone else.
+INSERT INTO users (email, username, password_hash, is_admin) VALUES
+  ('admin@example.com', 'admin',
+   '$2b$12$82PL3nUFs/z6C.dxuvC7kOt/6pYaTWIue7T1xRPlWN6DGfhV5/7Li', true);  -- id 2
+
 -- How this user rates each artist
 INSERT INTO user_artists (user_id, artist_id, rating) VALUES
   (1, 1, 5),   -- Radiohead

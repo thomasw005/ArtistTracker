@@ -25,7 +25,7 @@ router.post('/register', async (req, res) => {
         const rows = (await sql`
             INSERT INTO users (email, username, password_hash)
             VALUES (${email.toLowerCase()}, ${username}, ${password_hash})
-            RETURNING id, email, username, created_at
+            RETURNING id, email, username, created_at, is_admin
         `) as Omit<User, 'password_hash'>[];
         user = rows[0];
     } catch (err) {
@@ -61,7 +61,7 @@ router.post('/login', async (req, res) => {
     }
 
     const rows = (await sql`
-        SELECT id, email, username, password_hash, created_at
+        SELECT id, email, username, password_hash, created_at, is_admin
         FROM users WHERE email = ${email.toLowerCase()}
     `) as User[];
 
@@ -85,13 +85,17 @@ router.post('/login', async (req, res) => {
         email: user.email,
         username: user.username,
         created_at: user.created_at,
+        // The client needs this to decide whether to render the catalog-editing
+        // UI at all. It is a hint for the interface only — every write is
+        // re-checked server-side by requireAdmin.
+        is_admin: user.is_admin,
     });
 });
 
 // GET /api/auth/me - return the currently logged-in user
 router.get('/me', requireAuth, async (req, res) => {
     const rows = (await sql`
-        SELECT id, email, username, created_at FROM users WHERE id = ${req.userId}
+        SELECT id, email, username, created_at, is_admin FROM users WHERE id = ${req.userId}
     `) as Omit<User, 'password_hash'>[];
 
     // requireAuth already confirmed this user exists, so rows[0] is present.

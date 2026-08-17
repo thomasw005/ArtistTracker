@@ -9,6 +9,11 @@ const router = Router();
 
 // This whole router is mounted behind requireAuth in server.ts, so req.userId
 // is guaranteed to be set in every handler below. Every query is scoped to it.
+//
+// Deliberately NOT behind requireAdmin, unlike the catalog routes. The writes
+// here only touch the caller's own user_* rows — their ratings and prices —
+// which is the whole point of having an account. Admin gates the shared
+// catalog, not a user's private layer over it.
 
 // ---------------------------------------------------------------------------
 // Artists  (rating)

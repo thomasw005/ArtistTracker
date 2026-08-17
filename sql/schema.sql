@@ -17,7 +17,8 @@ CREATE TABLE users (
     email           TEXT NOT NULL UNIQUE,
     username        TEXT NOT NULL UNIQUE,
     password_hash   TEXT NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    is_admin        BOOLEAN NOT NULL DEFAULT false
 );
 
 -- Tokens killed by an explicit logout, held until the moment they would have

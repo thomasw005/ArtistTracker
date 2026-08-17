@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
+import { requireAdmin } from '../auth/requireAdmin.js';
 import type { Festival, FestivalWithRatings } from '../types.js';
 
 const router = Router();
@@ -51,8 +52,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/festivals - create a festival (added to the shared catalog)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/festivals - create a festival (admin only, until per-user
+// contribution permissions exist)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
     if (!name || year == null) {
@@ -69,8 +71,8 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(201).json(rows[0]);
 });
 
-// PUT /api/festivals/:id - update a festival (any signed-in user)
-router.put('/:id', requireAuth, async (req, res) => {
+// PUT /api/festivals/:id - update a festival (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { name, year } = (req.body ?? {}) as Partial<Festival>;
 
@@ -89,8 +91,8 @@ router.put('/:id', requireAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// DELETE /api/festivals/:id - delete a festival (any signed-in user)
-router.delete('/:id', requireAuth, async (req, res) => {
+// DELETE /api/festivals/:id - delete a festival (admin only)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     const rows = (await sql`DELETE FROM festivals WHERE id = ${id} RETURNING *`) as Festival[];

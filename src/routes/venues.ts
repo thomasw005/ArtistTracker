@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sql } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { optionalAuth } from '../auth/optionalAuth.js';
+import { requireAdmin } from '../auth/requireAdmin.js';
 import type { Venue, VenueWithRatings } from '../types.js';
 
 const router = Router();
@@ -46,8 +47,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// POST /api/venues - create a venue (added to the shared catalog)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/venues - create a venue (admin only, until per-user
+// contribution permissions exist)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
     if (!name) {
@@ -64,8 +66,8 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(201).json(rows[0]);
 });
 
-// PUT /api/venues/:id - update a venue (any signed-in user)
-router.put('/:id', requireAuth, async (req, res) => {
+// PUT /api/venues/:id - update a venue (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { name, city, country } = (req.body ?? {}) as Partial<Venue>;
 
@@ -84,8 +86,8 @@ router.put('/:id', requireAuth, async (req, res) => {
     res.json(rows[0]);
 });
 
-// DELETE /api/venues/:id - delete a venue (any signed-in user)
-router.delete('/:id', requireAuth, async (req, res) => {
+// DELETE /api/venues/:id - delete a venue (admin only)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     const rows = (await sql`DELETE FROM venues WHERE id = ${id} RETURNING *`) as Venue[];

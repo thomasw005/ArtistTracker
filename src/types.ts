@@ -4,6 +4,7 @@ export interface User {
   username: string;
   password_hash: string;
   created_at: string;
+  is_admin: boolean;
 }
 
 export interface Artist {
