@@ -5,10 +5,25 @@ import type { CookieOptions } from 'express';
 // clears a cookie when the attributes match how it was originally set.
 export const TOKEN_COOKIE = 'token';
 
-// Set CROSS_SITE_COOKIE=true when the frontend and API are served from
-// different sites (e.g. app.example.com vs api.example.com). Cross-site cookies
-// require SameSite=None, which in turn REQUIRES Secure (https). For same-site
-// setups (including localhost on different ports) 'lax' is correct.
+// SameSite=Lax is this app's ONLY CSRF defense: the browser won't attach the
+// cookie to a cross-site POST/PUT/DELETE, so a request forged by another site
+// arrives with no token and requireAuth rejects it. Two things to respect:
+//
+//   1. It only covers mutations that aren't GETs. Lax cookies ARE sent on
+//      cross-site top-level GET navigations, so never put a mutation behind a
+//      GET.
+//   2. Turning it off has no backstop. Nothing on the server checks the request
+//      Origin, so with SameSite=None a forged cross-site write reaches the
+//      handler with a valid cookie. Add an Origin check (and ideally a CSRF
+//      token) before shipping that config.
+//
+// So set CROSS_SITE_COOKIE=true ONLY when the frontend and API sit on different
+// REGISTRABLE DOMAINS (eTLD+1) — e.g. myapp.vercel.app calling myapi.fly.dev.
+// SameSite is judged per site, not per origin, so these are already same-site
+// and must leave it false:
+//   - different subdomains: app.example.com -> api.example.com
+//   - different ports:      localhost:5173  -> localhost:3000
+// (SameSite=None also REQUIRES Secure, which is why `secure` follows it below.)
 const crossSite = process.env.CROSS_SITE_COOKIE === 'true';
 
 export const tokenCookieOptions: CookieOptions = {

@@ -50,14 +50,19 @@ router.get('/:id', optionalAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
     const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
 
-    if (!name) {
-        res.status(400).json({ error: 'name is required' });
+    // The cast above is a claim about the body, not a check on it, so `name`
+    // can be any JSON type at runtime. Anything that isn't a string, or is
+    // only whitespace, collapses to '' and fails the guard below.
+    const artistName = typeof name === 'string' ? name.trim() : '';
+
+    if (!artistName) {
+        res.status(400).json({ error: 'name must be a non-empty string' });
         return;
     }
 
     const rows = (await sql`
         INSERT INTO artists (name, page_link, created_by)
-        VALUES (${name}, ${page_link ?? null}, ${req.userId})
+        VALUES (${artistName}, ${page_link ?? null}, ${req.userId})
         RETURNING *
     `) as Artist[];
 
@@ -69,9 +74,16 @@ router.put('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { name, page_link } = (req.body ?? {}) as Partial<Artist>;
 
+    const artistName = typeof name === 'string' ? name.trim() : '';
+
+    if (!artistName) {
+        res.status(400).json({ error: 'name must be a non-empty string' });
+        return;
+    }
+
     const rows = (await sql`
         UPDATE artists
-        SET name = ${name}, page_link = ${page_link ?? null}
+        SET name = ${artistName}, page_link = ${page_link ?? null}
         WHERE id = ${id}
         RETURNING *
     `) as Artist[];

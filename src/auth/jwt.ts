@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 
+// Check if JWT secret is set
 const secretFromEnv = process.env.JWT_SECRET;
 if (!secretFromEnv) {
     throw new Error('JWT_SECRET is not set, check your .env file');
