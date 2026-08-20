@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { hashPassword } from '../auth/password.js';
-import { verifyPassword } from '../auth/password.js';
+import { verifyPassword, DUMMY_PASSWORD_HASH } from '../auth/password.js';
 import { signToken, verifyToken } from '../auth/jwt.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { TOKEN_COOKIE, tokenCookieOptions, TOKEN_MAX_AGE } from '../auth/cookies.js';
@@ -129,6 +129,7 @@ router.post('/register', async (req, res) => {
         // 23505 = unique_violation. email and username each have a UNIQUE index,
         // so say which one collided rather than letting the generic handler in
         // server.ts echo Postgres' `detail` (which quotes the value back).
+    
         const pg = err as { code?: string; constraint?: string; detail?: string };
         if (pg.code === '23505') {
             const field =
@@ -179,7 +180,17 @@ router.post('/login', async (req, res) => {
     `) as User[];
 
     const user = rows[0];
-    const validPassword = user ? await verifyPassword(accountPassword, user.password_hash) : false;
+
+    // An unmatched email still gets a bcrypt comparison, against a hash that
+    // cannot match. Skipping it - the obvious version of this code - answers
+    // "no such account" in about 2ms and "wrong password" in about 200ms,
+    // because bcrypt is expensive by design. That 100x gap is readable through
+    // network noise, and it turns this route into an oracle for which addresses
+    // hold accounts. Both outcomes now take the same path and the same work.
+    const validPassword = await verifyPassword(
+        accountPassword,
+        user?.password_hash ?? DUMMY_PASSWORD_HASH,
+    );
 
     if (!user || !validPassword) {
         res.status(401).json({ error: 'Invalid email or password' });
