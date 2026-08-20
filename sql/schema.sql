@@ -15,9 +15,12 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     id              SERIAL PRIMARY KEY,
     email           TEXT NOT NULL UNIQUE
-                    CONSTRAINT users_email_normalized CHECK (email = lower(btrim(email))),
+                    CONSTRAINT users_email_normalized CHECK (email = lower(btrim(email)))
+                    CONSTRAINT users_email_length CHECK (length(email) <= 254),
     username        TEXT NOT NULL UNIQUE
-                    CONSTRAINT users_username_normalized CHECK (username = lower(btrim(username))),
+                    CONSTRAINT users_username_normalized CHECK (username = lower(btrim(username)))
+                    CONSTRAINT users_username_length CHECK (length(username) BETWEEN 3 AND 32)
+                    CONSTRAINT users_username_charset CHECK (username ~ '^[a-z0-9_-]+$'),
     password_hash   TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT now(),
     is_admin        BOOLEAN NOT NULL DEFAULT false

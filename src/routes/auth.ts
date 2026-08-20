@@ -21,6 +21,34 @@ const router = Router();
 const asTrimmedString = (value: unknown): string =>
     typeof value === 'string' ? value.trim() : '';
 
+// Both routes read these, so the rules can't drift apart. The two length caps
+// are mirrored by CHECK constraints in sql/schema.sql - change them in both
+// places or a value the API accepts starts failing at the database.
+const MAX_EMAIL_LENGTH = 254; // RFC 5321's limit on a forward-path address
+const MIN_USERNAME_LENGTH = 3;
+const MAX_USERNAME_LENGTH = 32;
+const MIN_PASSWORD_LENGTH = 8;
+
+// bcrypt hashes the first 72 bytes of a password and silently ignores the rest,
+// so a longer one would be accepted while only its opening 72 bytes ever
+// mattered - and any two passwords sharing that prefix would be interchangeable.
+// Rejecting is the honest read of that limit. Lifting it means pre-hashing
+// (SHA-256 -> base64) before bcrypt, which changes the format of every stored
+// hash and is a bigger decision than a validation rule.
+const MAX_PASSWORD_BYTES = 72;
+
+// Deliberately loose: one @ with no whitespace either side, and a dot in the
+// domain. Tighter patterns reject addresses that genuinely deliver, and the
+// only real proof an address works is sending mail to it.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// A handle, in the sense every social site means it. Tested after the value has
+// been case-folded, so someone typing 'Bob' still gets in - they just get 'bob'.
+// Keeping @ out matters most: without it a username can be shaped like an email
+// address, and anything that later looks accounts up by either field inherits
+// the ambiguity.
+const USERNAME_PATTERN = /^[a-z0-9_-]+$/;
+
 // POST /api/auth/register - create a new user account and start a session
 router.post('/register', async (req, res) => {
     const { email, username, password } = (req.body ?? {}) as Partial<User> & { password?: string };
@@ -39,6 +67,51 @@ router.post('/register', async (req, res) => {
 
     if (!accountEmail || !accountUsername || !accountPassword) {
         res.status(400).json({ error: 'email, username, and password must be non-empty strings' });
+        return;
+    }
+
+    if (accountEmail.length > MAX_EMAIL_LENGTH) {
+        res.status(400).json({
+            error: `email must be at most ${MAX_EMAIL_LENGTH} characters`,
+        });
+        return;
+    }
+
+    if (!EMAIL_PATTERN.test(accountEmail)) {
+        res.status(400).json({ error: 'email must be a valid email address' });
+        return;
+    }
+
+    if (
+        accountUsername.length < MIN_USERNAME_LENGTH ||
+        accountUsername.length > MAX_USERNAME_LENGTH
+    ) {
+        res.status(400).json({
+            error: `username must be ${MIN_USERNAME_LENGTH} to ${MAX_USERNAME_LENGTH} characters`,
+        });
+        return;
+    }
+
+    if (!USERNAME_PATTERN.test(accountUsername)) {
+        res.status(400).json({
+            error: 'username may only contain letters, numbers, underscores, and hyphens',
+        });
+        return;
+    }
+
+    if (accountPassword.length < MIN_PASSWORD_LENGTH) {
+        res.status(400).json({
+            error: `password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        });
+        return;
+    }
+
+    // Bytes, not characters: an accented letter costs two and an emoji four, so
+    // a 30-character password can still cross the line bcrypt stops reading at.
+    if (Buffer.byteLength(accountPassword, 'utf8') > MAX_PASSWORD_BYTES) {
+        res.status(400).json({
+            error: `password must be at most ${MAX_PASSWORD_BYTES} bytes`,
+        });
         return;
     }
 
@@ -84,6 +157,19 @@ router.post('/login', async (req, res) => {
 
     if (!accountEmail || !accountPassword) {
         res.status(400).json({ error: 'email and password must be non-empty strings' });
+        return;
+    }
+
+    // Login deliberately does NOT re-run the registration policy: those rules
+    // are free to tighten later, and accounts created under the old ones still
+    // have to be able to log in. It only enforces the caps, because a value
+    // past them cannot match any account register would have created. Same 401
+    // as a wrong password - the length policy isn't worth announcing here.
+    if (
+        accountEmail.length > MAX_EMAIL_LENGTH ||
+        Buffer.byteLength(accountPassword, 'utf8') > MAX_PASSWORD_BYTES
+    ) {
+        res.status(401).json({ error: 'Invalid email or password' });
         return;
     }
 
