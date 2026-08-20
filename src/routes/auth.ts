@@ -9,12 +9,19 @@ import type { User } from '../types.js';
 
 const router = Router();
 
+// Request bodies arrive as unknown JSON: the `as` casts below are claims about
+// their shape, not checks on it. Credential fields have to be verified here,
+// before they reach code that assumes a string - .toLowerCase() on a number, or
+// bcrypt hashing an object, throws and turns a bad request into a generic 500.
+const isNonEmptyString = (value: unknown): value is string =>
+    typeof value === 'string' && value !== '';
+
 // POST /api/auth/register - create a new user account and start a session
 router.post('/register', async (req, res) => {
     const { email, username, password } = (req.body ?? {}) as Partial<User> & { password?: string };
 
-    if (!email || !username || !password) {
-        res.status(400).json({ error: 'email, username, and password are required' });
+    if (!isNonEmptyString(email) || !isNonEmptyString(username) || !isNonEmptyString(password)) {
+        res.status(400).json({ error: 'email, username, and password must be non-empty strings' });
         return;
     }
 
@@ -55,8 +62,8 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
 
-    if (!email || !password) {
-        res.status(400).json({ error: 'email and password are required' });
+    if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+        res.status(400).json({ error: 'email and password must be non-empty strings' });
         return;
     }
 
