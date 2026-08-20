@@ -10,28 +10,45 @@ import type { User } from '../types.js';
 const router = Router();
 
 // Request bodies arrive as unknown JSON: the `as` casts below are claims about
-// their shape, not checks on it. Credential fields have to be verified here,
+// their shape, not checks on it. Credential fields have to be checked here,
 // before they reach code that assumes a string - .toLowerCase() on a number, or
 // bcrypt hashing an object, throws and turns a bad request into a generic 500.
-const isNonEmptyString = (value: unknown): value is string =>
-    typeof value === 'string' && value !== '';
+//
+// Normalising happens in the same pass: anything that isn't a string, or is only
+// whitespace, collapses to '' and fails the guards below. Register and login
+// MUST normalise identically - if one trims and the other doesn't, an account
+// created with a padded value can never be logged into.
+const asTrimmedString = (value: unknown): string =>
+    typeof value === 'string' ? value.trim() : '';
 
 // POST /api/auth/register - create a new user account and start a session
 router.post('/register', async (req, res) => {
     const { email, username, password } = (req.body ?? {}) as Partial<User> & { password?: string };
 
-    if (!isNonEmptyString(email) || !isNonEmptyString(username) || !isNonEmptyString(password)) {
+    // Trailing whitespace is almost always an artefact of how the value was
+    // typed or pasted, not part of the credential. Only the edges go: interior
+    // spaces are left alone, so passphrases still work.
+    //
+    // email and username are both case-folded so that the UNIQUE indexes on
+    // them are effectively case-insensitive - without this, 'Bob' and 'bob' are
+    // two different strings and both get an account. The password is NOT folded:
+    // case is real entropy there.
+    const accountEmail = asTrimmedString(email).toLowerCase();
+    const accountUsername = asTrimmedString(username).toLowerCase();
+    const accountPassword = asTrimmedString(password);
+
+    if (!accountEmail || !accountUsername || !accountPassword) {
         res.status(400).json({ error: 'email, username, and password must be non-empty strings' });
         return;
     }
 
-    const password_hash = await hashPassword(password);
+    const password_hash = await hashPassword(accountPassword);
 
     let user: Omit<User, 'password_hash'>;
     try {
         const rows = (await sql`
             INSERT INTO users (email, username, password_hash)
-            VALUES (${email.toLowerCase()}, ${username}, ${password_hash})
+            VALUES (${accountEmail}, ${accountUsername}, ${password_hash})
             RETURNING id, email, username, created_at, is_admin
         `) as Omit<User, 'password_hash'>[];
         user = rows[0];
@@ -62,18 +79,21 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
 
-    if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+    const accountEmail = asTrimmedString(email).toLowerCase();
+    const accountPassword = asTrimmedString(password);
+
+    if (!accountEmail || !accountPassword) {
         res.status(400).json({ error: 'email and password must be non-empty strings' });
         return;
     }
 
     const rows = (await sql`
         SELECT id, email, username, password_hash, created_at, is_admin
-        FROM users WHERE email = ${email.toLowerCase()}
+        FROM users WHERE email = ${accountEmail}
     `) as User[];
 
     const user = rows[0];
-    const validPassword = user ? await verifyPassword(password, user.password_hash) : false;
+    const validPassword = user ? await verifyPassword(accountPassword, user.password_hash) : false;
 
     if (!user || !validPassword) {
         res.status(401).json({ error: 'Invalid email or password' });

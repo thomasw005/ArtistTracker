@@ -14,8 +14,10 @@ DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
     id              SERIAL PRIMARY KEY,
-    email           TEXT NOT NULL UNIQUE,
-    username        TEXT NOT NULL UNIQUE,
+    email           TEXT NOT NULL UNIQUE
+                    CONSTRAINT users_email_normalized CHECK (email = lower(btrim(email))),
+    username        TEXT NOT NULL UNIQUE
+                    CONSTRAINT users_username_normalized CHECK (username = lower(btrim(username))),
     password_hash   TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT now(),
     is_admin        BOOLEAN NOT NULL DEFAULT false
